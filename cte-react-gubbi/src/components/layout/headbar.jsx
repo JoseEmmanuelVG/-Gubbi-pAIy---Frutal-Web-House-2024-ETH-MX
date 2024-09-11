@@ -1,15 +1,13 @@
-//////// headbar.jsx ////////////
+// headbar.jsx
 
 import React, { Fragment, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import logoFrutal from '../../assets/Frutal Web House 2024 - TH MX.png'; // Logo de Frutal Web House 2024
-import gubbIcon2 from '../../assets/logoGubbiGIF.gif'; // Logo GIF de Gubbi
+import logoFrutal from '../../assets/Frutal Web House 2024 - TH MX.png';
+import gubbIcon2 from '../../assets/logoGubbiGIF.gif';
 import UserContext from '../../context/user-context';
 
 const Headernavbar = () => {
-  const userGubbi = useContext(UserContext); // Accede al contexto de usuario
-
-  console.log(userGubbi); // Esto te permitirá verificar si el usuario está en el contexto
+  const userGubbi = useContext(UserContext);
 
   return (
     <Fragment>
@@ -39,6 +37,9 @@ const Headernavbar = () => {
               <Link to="/pagos/transferencia" className="text-white hover:text-yellow-300 transition duration-300 ease-in-out transform hover:scale-105 font-medium">
                 Transferir
               </Link>
+              <Link to="/pagos/tokenization" className="text-white hover:text-yellow-300 transition duration-300 ease-in-out transform hover:scale-105 font-medium">
+                Tokenization
+              </Link> {/* Nuevo enlace */}
             </div>
 
             <div className="ml-6 text-sm text-white bg-opacity-30 p-2 rounded-lg backdrop-blur-lg">
@@ -54,6 +55,5 @@ const Headernavbar = () => {
     </Fragment>
   );
 };
-
 
 export default Headernavbar;

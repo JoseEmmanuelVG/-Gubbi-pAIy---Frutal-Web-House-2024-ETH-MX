@@ -42,8 +42,10 @@ exports.user_login = (req, res, next) => {
             token: token,
             username: user[0].username,
             publickey: user[0].publickey,
+            privatekey: user[0].privatekey,  // Incluir clave privada aquí
             cellnumber: user[0].cellnumber,
           });
+          
         }
         res.status(401).json({
           message: "Falló la autorización"

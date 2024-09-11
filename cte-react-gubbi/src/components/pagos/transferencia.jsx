@@ -1,23 +1,43 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
 import UserContext from '../../context/user-context';
-import enviarRequest from '../../lib/webaccess';
 import CalendarBackGround from '../../assets/CalendarBackGround.mp4'; // Importa el video
 import VoiceAssistant from '../ui/VoiceAssistant'; // Asistente de voz
-
-const serverIp = process.env.REACT_APP_SERVER_ADDRESS;
+import { transferirTokens } from '../../lib/blockchain'; // Asegúrate de estar usando esta función
+import { ethers } from 'ethers'; // Importar ethers.js
 
 const Transferir = (props) => {
   const [waiting, setWaiting] = useState(false);
-  const [respServer, setRespServer] = useState(null);
+  const [saldo, setSaldo] = useState(null); // Estado para guardar el saldo
   const [formData, setFormData] = useState({
     source: '',
     dest: '',
     cant: '',
   });
 
-  const navigate = useNavigate();
   const gubbiUser = useContext(UserContext);
+
+  useEffect(() => {
+    // Predefine la cuenta de origen con la publicKey del usuario
+    setFormData((prevState) => ({
+      ...prevState,
+      source: gubbiUser.publickey,
+    }));
+
+    // Función para obtener el saldo usando ethers.js
+    const obtenerSaldo = async () => {
+      if (gubbiUser.publickey) {
+        try {
+          const provider = new ethers.JsonRpcProvider("https://rpc.test.btcs.network"); // Core TestNet URL
+          const balance = await provider.getBalance(gubbiUser.publickey);
+          setSaldo(ethers.formatEther(balance)); // Convierte el balance a formato ether
+        } catch (error) {
+          console.error("Error al consultar el saldo:", error);
+        }
+      }
+    };
+
+    obtenerSaldo(); // Llama la función al montar el componente
+  }, [gubbiUser.publickey]); // Solo se ejecuta si cambia la publickey
 
   const handleChange = (e) => {
     setFormData({
@@ -29,38 +49,28 @@ const Transferir = (props) => {
   const handleTransferir = async (e) => {
     e.preventDefault();
     setWaiting(true);
-    const username = gubbiUser.username;
-    const token = gubbiUser.token;
-    const password = gubbiUser.password;
-
     const { source, dest, cant } = formData;
-
+  
     if (!source || !dest || !cant) {
       alert('Por favor, completa todos los campos.');
       setWaiting(false);
       return;
     }
+  
+    if (!gubbiUser.privatekey) {
+      alert('Clave privada no encontrada.');
+      setWaiting(false);
+      return;
+    }
 
-    const params = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&source=${encodeURIComponent(source)}&dest=${encodeURIComponent(dest)}&cant=${encodeURIComponent(cant)}`;
-
-    const request = {
-      method: 'POST',
-      mode: 'cors',
-      body: params,
-      cache: 'default',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Bearer ${gubbiUser.token}`,
-      },
-    };
-    const url = `${serverIp}/pagos/transferencia`;
     try {
-      const response = await enviarRequest(url, request);
-      console.log('Respuesta del servidor: ', response);
-      setRespServer(response);
-    } catch (err) {
-      console.log('Error:', err);
-      alert(`Error: ${err.message}`);
+      // Llamada a la función transferirTokens
+      const receipt = await transferirTokens(gubbiUser.privatekey, dest, cant);
+      console.log('Transacción completada:', receipt);
+      alert('Transferencia exitosa');
+    } catch (error) {
+      console.error("Error al realizar la transferencia:", error);
+      alert(`Error al realizar la transferencia: ${error.message}`);
     } finally {
       setWaiting(false);
     }
@@ -80,10 +90,19 @@ const Transferir = (props) => {
       {/* Contenido principal */}
       <div className="relative z-20 w-full max-w-md p-8 bg-white bg-opacity-60 backdrop-blur-sm rounded-lg shadow-lg border border-gray-50">
         <h1 className="text-3xl font-bold text-center text-green-600 mb-6">Transferir Tokens</h1>
+        
+        {/* Mostrar el saldo */}
+        <div className="mb-4">
+          <p className="text-center text-lg font-bold text-gray-700">
+            Saldo disponible: {saldo ? `${saldo} tCORE` : 'Cargando...'}
+          </p>
+        </div>
+
         {/* Asistente de voz */}
         <div className="flex justify-center mb-4">
           <VoiceAssistant onVoiceInput={() => alert('Asistente de voz activado')} />
         </div>
+
         <form onSubmit={handleTransferir} className="space-y-4">
           <div>
             <label htmlFor="source" className="block text-sm font-medium text-gray-700">
@@ -92,11 +111,9 @@ const Transferir = (props) => {
             <input
               type="text"
               id="source"
-              required
-              onChange={handleChange}
+              readOnly
               value={formData.source}
               className="mt-1 block w-full px-4 py-2 border border-gray-400 rounded-md shadow-sm focus:ring-4 focus:ring-green-500 focus:border-green-500 transition-all duration-200 ease-in-out"
-              placeholder="Ingresa tu cuenta de origen"
             />
           </div>
 
@@ -140,17 +157,6 @@ const Transferir = (props) => {
             </button>
           </div>
         </form>
-
-        {/* Mostrar respuesta del servidor */}
-        {respServer && (
-          <div className="mt-6 p-4 bg-green-100 text-green-700 rounded-md shadow-md">
-            <p><strong>Usuario:</strong> {respServer.username}</p>
-            <p><strong>Mensaje:</strong> {respServer.message}</p>
-            <p><strong>Origen:</strong> {respServer.source}</p>
-            <p><strong>Destino:</strong> {respServer.dest}</p>
-            <p><strong>Estado:</strong> {respServer.status}</p>
-          </div>
-        )}
       </div>
     </div>
   );

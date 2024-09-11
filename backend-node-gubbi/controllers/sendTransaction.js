@@ -1,36 +1,58 @@
 const { ethers } = require("ethers");
 
-// Clave privada del remitente (no la compartas públicamente)
-const privateKey = "0x23a3dd25be93907c84524cd8102809894d41652e9751cd25e689110c11c0751f";
+// Clave privada y pública de la cuenta de origen
+const privateKeyOrigen = "0x23a3dd25be93907c84524cd8102809894d41652e9751cd25e689110c11c0751f"; // Clave privada de JEVG2
+const publicKeyDestino = "0x531218De058291832325Ca1c12999411b583C5dd"; // Clave pública de JEVG456
 
-// Conectarse a la red de Core (Mainnet)
-const provider = new ethers.JsonRpcProvider("https://rpc.coredao.org");
+// Conexión a la red de Core TestNet
+const provider = new ethers.JsonRpcProvider("https://rpc.test.btcs.network");
 
-// Crear la billetera usando la clave privada
-const wallet = new ethers.Wallet(privateKey, provider);
+// Crear la wallet con la clave privada de origen
+const wallet = new ethers.Wallet(privateKeyOrigen, provider);
 
-// Dirección de destino
-const recipientAddress = "0xRecipientPublicAddress"; // Reemplaza con la dirección del destinatario
+// Función para realizar la transferencia
+async function transferirTokens() {
+  try {
+    // Consultar el saldo inicial de la cuenta de origen
+    const saldoInicial = await provider.getBalance(wallet.address);
+    console.log(`Saldo inicial de la cuenta de origen: ${ethers.formatEther(saldoInicial)} tCORE`);
 
-// Cantidad a enviar (en CORE)
-const amountToSend = ethers.parseEther("0.1"); // Esto es 0.1 CORE
+    // Parámetros de la transacción
+    const tx = {
+      to: publicKeyDestino, // Cuenta de destino
+      value: ethers.parseEther("0.1"), // Cantidad de tokens a enviar (0.5 tCORE)
+      gasLimit: 21000, // Límite de gas estándar para una transacción
+      gasPrice: ethers.parseUnits('50', 'gwei') // Precio del gas manualmente establecido a 50 gwei
+    };
 
-async function sendTransaction() {
-    try {
-        // Crear y enviar la transacción
-        const tx = await wallet.sendTransaction({
-            to: recipientAddress,
-            value: amountToSend
-        });
+    // Mostrar los datos de gas
+    console.log(`Gas Price manual: ${tx.gasPrice} wei`);
 
-        console.log("Transacción enviada. Hash:", tx.hash);
+    // Firmar y enviar la transacción
+    const txResponse = await wallet.sendTransaction(tx);
+    console.log("Transacción enviada:", txResponse.hash);
 
-        // Esperar la confirmación de la transacción
-        const receipt = await tx.wait();
-        console.log("Transacción confirmada en el bloque:", receipt.blockNumber);
-    } catch (error) {
-        console.error("Error al enviar la transacción:", error);
-    }
+    // Esperar a que la transacción sea confirmada
+    const receipt = await txResponse.wait();
+    console.log("Transacción confirmada en el bloque:", receipt.blockNumber);
+
+    // Consultar el saldo final de la cuenta de origen
+    const saldoFinal = await provider.getBalance(wallet.address);
+    console.log(`Saldo final de la cuenta de origen: ${ethers.formatEther(saldoFinal)} tCORE`);
+    
+    return receipt; // Retornar el recibo de la transacción
+  } catch (error) {
+    console.error("Error al realizar la transferencia:", error);
+  }
 }
 
-sendTransaction();
+// Llamada a la función para transferir tokens
+transferirTokens();
+
+
+
+/////JEVG2 
+/////pass: 1234 
+
+/////JEVG456
+/////pass: 456

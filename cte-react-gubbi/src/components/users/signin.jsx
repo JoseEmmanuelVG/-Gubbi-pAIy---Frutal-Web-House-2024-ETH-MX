@@ -38,6 +38,7 @@ const SignInPage = (props) => {
             username: datos.username,
             token: datos.token,
             publickey: datos.publickey,
+            privatekey: datos.privatekey,
             cellnumber: datos.cellnumber
         });
         navigate('/');

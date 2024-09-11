@@ -29,16 +29,19 @@ export const UserContextProvider = ({ children }) => {
       }, []); // Se ejecuta solo una vez al montar el componente
       
 
+
         const login = (userData) => {
-                console.log("Usuario guardado en el contexto:", userData); // Verifica que la función se ejecute
+                console.log("Usuario guardado en el contexto:", userData);
                 localStorage.setItem('gubbiUser', JSON.stringify(userData));
                 setUser({
-                username: userData.username,
-                token: userData.token,
-                publickey: userData.publickey,
-                cellnumber: userData.cellnumber,
+                  username: userData.username,
+                  token: userData.token,
+                  publickey: userData.publickey,
+                  privatekey: userData.privatekey, // Incluir la clave privada
+                  cellnumber: userData.cellnumber,
                 });
-        };
+              };
+              
         
 
     const logout = () => {
