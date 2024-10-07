@@ -1,29 +1,30 @@
+/////////users.js
+
 const mongoose    = require("mongoose");
 const bcrypt      = require("bcrypt");
 const jwt         = require("jsonwebtoken");
 const User        = require("../models/users");
-const morgan      = require ('morgan')
-
+const morgan      = require('morgan');
+const { ethers }  = require("ethers"); // Importa ethers.js
 
 exports.user_login = (req, res, next) => {
-  //morgan(':method :host :status :res[content-length] - :response-time ms'); // This is a modified version of morgan's tiny predefined format string.
-  console.log('req.body', req.body)
+  console.log('req.body', req.body);
   User.find({ username: req.body.username })
     .exec()
     .then(user => {
       if (user.length < 1) {
         return res.status(401).json({
-          message: "Falló Authorización"
+          message: "Falló la autorización"
         });
       }
       bcrypt.compare(req.body.password, user[0].password, (err, result) => {
         if (err) {
           return res.status(401).json({
-            message: "Falló Authorización"
+            message: "Falló la autorización"
           });
         }
         if (result) {
-          console.log('recuperado:',user[0]);
+          console.log('Usuario encontrado:', user[0]);
           const token = jwt.sign(
             {
               username: user[0].username,
@@ -41,12 +42,13 @@ exports.user_login = (req, res, next) => {
             token: token,
             username: user[0].username,
             publickey: user[0].publickey,
+            privatekey: user[0].privatekey,  // Incluir clave privada aquí
             cellnumber: user[0].cellnumber,
-
           });
+          
         }
         res.status(401).json({
-          message: "Falló Authorización"
+          message: "Falló la autorización"
         });
       });
     })
@@ -58,64 +60,76 @@ exports.user_login = (req, res, next) => {
     });
 };
 
-// SignUp un nuevo usuario
+// SignUp un nuevo usuario con generación de claves usando ethers.js
 exports.user_signup = (req, res, next) => {
-     // Checar si el nombre de usuario ya esta tomado y rechaza si es asi
-     console.log('req.body', req.body)
-     User.find({username: req.body.username})
+  console.log('req.body', req.body);
+  User.find({ username: req.body.username })
     .exec()
     .then(user => {
-        if (user.length!=0) {
-          console.warn('Usuario ya existe');
-          res.status(500).json({message: 'Usuario ya existe'})
-        } else {
-          // user nuevo, intentar el alta del usuario 
-          // encripta el password
-          bcrypt.hash(req.body.password, 10, (err, hash) => {
-            if (err) {
-                console.log('error en hashing', err)
-                res.status(500).json({
-                error: err
-              });
-            } else {   
-              // OK crear usuario
-              let cellnumber=  req.body.cellnumber ?? ''  // cellnumber opcional, previene si no existe
-              //***************************************** 
-              // AQUI crear y asignar las llaves publico privadas para administrar la cuenta del usuario!
-              let publickey = '0x275992a10C582473f45d0D966564b757d8B66750'    // provisional
-              let privatekey = '5e1278c564f54091bddcfa8cc4063609c7b9c34b8aa3f9d1e50ef2a0c3b41202'    // provisional
-              //********************************************
-              const user = new User({
-                  _id:        new mongoose.Types.ObjectId(),
-                  username:      req.body.username,
-                  cellnumber:    cellnumber,
-                  password:      hash,    // salva el hash para validar password en cada login
-                  publickey:     publickey,    
-                  privatekey:     privatekey,    
-                });
-                user.save()
-                  .then(result => {
-                    console.log('resultado:',result);
-                    res.status(201).json({
-                      message: "Usuario creado exitosamente"
-                    });
-                  })
-                  .catch(err => {
-                    console.log(err);
-                    res.status(500).json({
-                    message: err
-                    });
-                  });
-                  }
-          })
-        }
-      }).catch ((error) =>{
-          console.warn(error);
-          res.status(500).json({message: error}); 
-          return;
-      })
+      if (user.length !== 0) {
+        console.warn('Usuario ya existe');
+        return res.status(500).json({ message: 'Usuario ya existe' });
+      } else {
+        // Generar una nueva billetera usando ethers.js
+        const wallet = ethers.Wallet.createRandom();
+        const publickey = wallet.address;
+        const privatekey = wallet.privateKey;
 
+        // Encriptar el password del usuario
+        bcrypt.hash(req.body.password, 10, (err, hash) => {
+          if (err) {
+            console.log('Error en hashing', err);
+            return res.status(500).json({
+              error: err
+            });
+          } else {
+            const cellnumber = req.body.cellnumber ?? '';
+
+            const user = new User({
+              _id: new mongoose.Types.ObjectId(),
+              username: req.body.username,
+              cellnumber: cellnumber,
+              password: hash,  // Almacena el hash del password
+              publickey: publickey,  // Clave pública generada
+              privatekey: privatekey, // Clave privada generada
+            });
+
+            user.save()
+              .then(result => {
+                console.log('Usuario creado exitosamente:', result);
+                return res.status(201).json({
+                  message: "Usuario creado exitosamente",
+                  user: {
+                    username: result.username,
+                    publickey: result.publickey,
+                    cellnumber: result.cellnumber,
+                  }
+                });
+              })
+              .catch(err => {
+                console.log(err);
+                return res.status(500).json({
+                  message: err
+                });
+              });
+          }
+        });
+      }
+    })
+    .catch((error) => {
+      console.warn(error);
+      return res.status(500).json({ message: error });
+    });
 };
+
+
+
+//////ethers.js
+/////web3
+/////https://docs.ethers.org/v6/
+/////https://viem.sh/docs/installation
+///Al guardar nombre de usuario y contraseña, se crea una cuenta de Core y/o avalanch para que se guarden en el backend las credenciales y con ellas firmar  
+
 
 // OJO. Debido a que la sesion se maneja con un token jsonw web, el servidor no mantiene sesiones abiertas y es el cliente quien deb preservar el token durante la sesion
 // a eleccion del programador del cliente puede almacenar el token para enviarlo en cada interaccion con el server y cuando quiera cerrar sesion deberia simplemente
